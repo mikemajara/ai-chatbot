@@ -10,6 +10,7 @@ import {
   gte,
   inArray,
   lt,
+  sql,
   type SQL,
 } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
@@ -24,6 +25,8 @@ import {
   type DBMessage,
   document,
   message,
+  type Model,
+  model,
   type Suggestion,
   stream,
   suggestion,
@@ -597,6 +600,88 @@ export async function getStreamIdsByChatId({ chatId }: { chatId: string }) {
     throw new ChatSDKError(
       "bad_request:database",
       "Failed to get stream ids by chat id"
+    );
+  }
+}
+
+export async function getEnabledModels() {
+  try {
+    return await db
+      .select()
+      .from(model)
+      .where(eq(model.isEnabled, true))
+      .orderBy(asc(model.provider), asc(model.name));
+  } catch (_error) {
+    throw new ChatSDKError(
+      "bad_request:database",
+      "Failed to get enabled models"
+    );
+  }
+}
+
+export async function upsertModels(models: Model[]) {
+  try {
+    if (models.length === 0) {
+      return;
+    }
+
+    const now = new Date();
+
+    await db
+      .insert(model)
+      .values(
+        models.map((m) => ({
+          id: m.id,
+          name: m.name,
+          provider: m.provider,
+          description: m.description,
+          modelType: m.modelType,
+          contextWindow: m.contextWindow,
+          pricingInput: m.pricingInput,
+          pricingOutput: m.pricingOutput,
+          isEnabled: m.isEnabled,
+          createdAt: m.createdAt ?? now,
+          updatedAt: now,
+        }))
+      )
+      .onConflictDoUpdate({
+        target: model.id,
+        set: {
+          name: sql`excluded.name`,
+          provider: sql`excluded.provider`,
+          description: sql`excluded.description`,
+          modelType: sql`excluded."modelType"`,
+          contextWindow: sql`excluded."contextWindow"`,
+          pricingInput: sql`excluded."pricingInput"`,
+          pricingOutput: sql`excluded."pricingOutput"`,
+          updatedAt: now,
+          // createdAt and isEnabled are not updated on conflict
+        },
+      });
+  } catch (_error) {
+    throw new ChatSDKError(
+      "bad_request:database",
+      "Failed to upsert models"
+    );
+  }
+}
+
+export async function toggleModelEnabled({
+  id,
+  isEnabled,
+}: {
+  id: string;
+  isEnabled: boolean;
+}) {
+  try {
+    return await db
+      .update(model)
+      .set({ isEnabled, updatedAt: new Date() })
+      .where(eq(model.id, id));
+  } catch (_error) {
+    throw new ChatSDKError(
+      "bad_request:database",
+      "Failed to toggle model enabled status"
     );
   }
 }

@@ -2,9 +2,11 @@ import type { InferSelectModel } from "drizzle-orm";
 import {
   boolean,
   foreignKey,
+  integer,
   json,
   pgTable,
   primaryKey,
+  real,
   text,
   timestamp,
   uuid,
@@ -168,3 +170,19 @@ export const stream = pgTable(
 );
 
 export type Stream = InferSelectModel<typeof stream>;
+
+export const model = pgTable("Model", {
+  id: varchar("id", { length: 128 }).primaryKey().notNull(), // e.g., "openai/gpt-4o"
+  name: varchar("name", { length: 128 }).notNull(),
+  provider: varchar("provider", { length: 64 }).notNull(),
+  description: text("description"),
+  modelType: varchar("modelType", { length: 32 }), // "language" | "embedding"
+  contextWindow: integer("contextWindow"),
+  pricingInput: real("pricingInput"), // Cost per 1M input tokens
+  pricingOutput: real("pricingOutput"), // Cost per 1M output tokens
+  isEnabled: boolean("isEnabled").notNull().default(true), // Allow hiding models
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+  updatedAt: timestamp("updatedAt").notNull().defaultNow(),
+});
+
+export type Model = InferSelectModel<typeof model>;

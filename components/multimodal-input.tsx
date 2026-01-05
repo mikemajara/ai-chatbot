@@ -15,6 +15,7 @@ import {
   useState,
 } from "react";
 import { toast } from "sonner";
+import useSWR from "swr";
 import { useLocalStorage, useWindowSize } from "usehooks-ts";
 import {
   ModelSelector,
@@ -27,11 +28,9 @@ import {
   ModelSelectorName,
   ModelSelectorTrigger,
 } from "@/components/ai-elements/model-selector";
-import {
-  chatModels,
-  DEFAULT_CHAT_MODEL,
-  modelsByProvider,
-} from "@/lib/ai/models";
+import type { ChatModel } from "@/lib/ai/models";
+import { DEFAULT_CHAT_MODEL } from "@/lib/ai/models";
+import { fetcher } from "@/lib/utils";
 import type { Attachment, ChatMessage } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import {
@@ -467,11 +466,36 @@ function PureModelSelectorCompact({
 }) {
   const [open, setOpen] = useState(false);
 
+  const { data: models, isLoading } = useSWR<ChatModel[]>(
+    "/api/models",
+    fetcher,
+    {
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+    }
+  );
+
+  // Group models by provider
+  const modelsByProvider = models
+    ? models.reduce(
+        (acc, model) => {
+          if (!acc[model.provider]) {
+            acc[model.provider] = [];
+          }
+          acc[model.provider].push(model);
+          return acc;
+        },
+        {} as Record<string, ChatModel[]>
+      )
+    : {};
+
   const selectedModel =
-    chatModels.find((m) => m.id === selectedModelId) ??
-    chatModels.find((m) => m.id === DEFAULT_CHAT_MODEL) ??
-    chatModels[0];
-  const [provider] = selectedModel.id.split("/");
+    models?.find((m) => m.id === selectedModelId) ??
+    models?.find((m) => m.id === DEFAULT_CHAT_MODEL) ??
+    models?.[0] ??
+    null;
+
+  const [provider] = selectedModel?.id.split("/") ?? [""];
 
   // Provider display names
   const providerNames: Record<string, string> = {
@@ -482,12 +506,26 @@ function PureModelSelectorCompact({
     reasoning: "Reasoning",
   };
 
+  if (isLoading || !models || models.length === 0) {
+    return (
+      <Button
+        className="h-8 w-[200px] justify-between px-2"
+        disabled
+        variant="ghost"
+      >
+        <ModelSelectorName>
+          {isLoading ? "Loading models..." : "No models available"}
+        </ModelSelectorName>
+      </Button>
+    );
+  }
+
   return (
     <ModelSelector onOpenChange={setOpen} open={open}>
       <ModelSelectorTrigger asChild>
         <Button className="h-8 w-[200px] justify-between px-2" variant="ghost">
           {provider && <ModelSelectorLogo provider={provider} />}
-          <ModelSelectorName>{selectedModel.name}</ModelSelectorName>
+          <ModelSelectorName>{selectedModel?.name ?? "Select model"}</ModelSelectorName>
         </Button>
       </ModelSelectorTrigger>
       <ModelSelectorContent>
@@ -512,8 +550,17 @@ function PureModelSelectorCompact({
                       value={model.id}
                     >
                       <ModelSelectorLogo provider={logoProvider} />
-                      <ModelSelectorName>{model.name}</ModelSelectorName>
-                      {model.id === selectedModel.id && (
+                      <div className="flex flex-col">
+                        <ModelSelectorName>{model.name}</ModelSelectorName>
+                        {model.pricingInput !== null &&
+                          model.pricingOutput !== null && (
+                            <span className="text-xs text-muted-foreground">
+                              ${model.pricingInput.toFixed(2)}/$1M in • $
+                              {model.pricingOutput.toFixed(2)}/$1M out
+                            </span>
+                          )}
+                      </div>
+                      {model.id === selectedModel?.id && (
                         <CheckIcon className="ml-auto size-4" />
                       )}
                     </ModelSelectorItem>
