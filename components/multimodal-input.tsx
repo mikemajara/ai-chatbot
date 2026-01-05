@@ -40,10 +40,22 @@ import {
   PromptInputToolbar,
   PromptInputTools,
 } from "./elements/prompt-input";
-import { ArrowUpIcon, PaperclipIcon, StopIcon } from "./icons";
+import {
+  ArrowUpIcon,
+  GlobeIcon,
+  ImageIcon,
+  PaperclipIcon,
+  StopIcon,
+} from "./icons";
 import { PreviewAttachment } from "./preview-attachment";
 import { SuggestedActions } from "./suggested-actions";
 import { Button } from "./ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "./ui/tooltip";
 import type { VisibilityType } from "./visibility-selector";
 
 function setCookie(name: string, value: string) {
@@ -534,16 +546,17 @@ function PureModelSelectorCompact({
   }
 
   return (
-    <ModelSelector onOpenChange={setOpen} open={open}>
-      <ModelSelectorTrigger asChild>
-        <Button className="h-8 w-[200px] justify-between px-2" variant="ghost">
-          {provider && <ModelSelectorLogo provider={provider} />}
-          <ModelSelectorName>{selectedModel?.name ?? "Select model"}</ModelSelectorName>
-        </Button>
-      </ModelSelectorTrigger>
-      <ModelSelectorContent>
-        <ModelSelectorInput placeholder="Search models..." />
-        <ModelSelectorList>
+    <TooltipProvider>
+      <ModelSelector onOpenChange={setOpen} open={open}>
+        <ModelSelectorTrigger asChild>
+          <Button className="h-8 w-[200px] justify-between px-2" variant="ghost">
+            {provider && <ModelSelectorLogo provider={provider} />}
+            <ModelSelectorName>{selectedModel?.name ?? "Select model"}</ModelSelectorName>
+          </Button>
+        </ModelSelectorTrigger>
+        <ModelSelectorContent>
+          <ModelSelectorInput placeholder="Search models..." />
+          <ModelSelectorList>
           {Object.entries(modelsByProvider).map(
             ([providerKey, providerModels]) => (
               <ModelSelectorGroup
@@ -563,7 +576,7 @@ function PureModelSelectorCompact({
                       value={model.id}
                     >
                       <ModelSelectorLogo provider={logoProvider} />
-                      <div className="flex flex-col">
+                      <div className="flex flex-col flex-1">
                         <ModelSelectorName>{model.name}</ModelSelectorName>
                         {model.pricingInput !== null &&
                           model.pricingOutput !== null && (
@@ -573,9 +586,35 @@ function PureModelSelectorCompact({
                             </span>
                           )}
                       </div>
-                      {model.id === selectedModel?.id && (
-                        <CheckIcon className="ml-auto size-4" />
-                      )}
+                      <div className="flex items-center gap-1 ml-auto">
+                        {model.pricingImageGen !== null && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div className="flex items-center text-muted-foreground">
+                                <ImageIcon size={12} />
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Image Generation</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
+                        {model.pricingWebSearch !== null && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div className="flex items-center text-muted-foreground">
+                                <GlobeIcon size={12} />
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Web Search</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
+                        {model.id === selectedModel?.id && (
+                          <CheckIcon className="ml-1 size-4" />
+                        )}
+                      </div>
                     </ModelSelectorItem>
                   );
                 })}
@@ -583,8 +622,9 @@ function PureModelSelectorCompact({
             )
           )}
         </ModelSelectorList>
-      </ModelSelectorContent>
-    </ModelSelector>
+        </ModelSelectorContent>
+      </ModelSelector>
+    </TooltipProvider>
   );
 }
 

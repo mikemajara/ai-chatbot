@@ -11,6 +11,8 @@ export type ChatModel = {
   contextWindow: number | null;
   pricingInput: number | null;
   pricingOutput: number | null;
+  pricingImageGen: number | null;
+  pricingWebSearch: number | null;
   isEnabled: boolean;
   createdAt: Date;
   updatedAt: Date;

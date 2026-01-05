@@ -16,7 +16,7 @@ export async function GET() {
     return Response.json(models);
   } catch (error) {
     return new ChatSDKError(
-      "internal_server_error:api",
+      "bad_request:api",
       "Failed to fetch models"
     ).toResponse();
   }
@@ -28,7 +28,7 @@ export async function POST(request: Request) {
 
   if (!expectedApiKey) {
     return new ChatSDKError(
-      "internal_server_error:api",
+      "bad_request:api",
       "MODELS_SYNC_API_KEY not configured"
     ).toResponse();
   }
@@ -48,22 +48,56 @@ export async function POST(request: Request) {
     const availableModels = await gateway.getAvailableModels();
     console.log(`Fetched ${availableModels.models.length} models from gateway`);
 
+    // Temporary logging to explore Gateway API response structure
+    const targetModel = availableModels.models.find((m) => m.id === "openai/gpt-5-chat");
+    if (targetModel) {
+      console.log(
+        "Full model data for openai/gpt-5-chat:",
+        JSON.stringify(targetModel, null, 2)
+      );
+    }
+
     // Filter to only language models and transform to our schema
     const languageModels: Model[] = availableModels.models
       .filter((m) => m.modelType === "language")
-      .map((m) => ({
-        id: m.id,
-        name: m.name,
-        provider: m.id.split("/")[0],
-        description: m.description ?? null,
-        modelType: m.modelType ?? "language",
-        contextWindow: m.contextWindow ?? null,
-        pricingInput: m.pricing?.input ?? null,
-        pricingOutput: m.pricing?.output ?? null,
-        isEnabled: true,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      }));
+      .map((m) => {
+        // Extract capability pricing from Gateway API response
+        // Note: Structure may need adjustment based on actual API response
+        // The pricing object may contain additional fields for capabilities
+        const pricing = m.pricing as
+          | {
+              input?: string;
+              output?: string;
+              imageGen?: string;
+              webSearch?: string;
+              [key: string]: unknown;
+            }
+          | null
+          | undefined;
+
+        // Parse pricing values (they come as strings from Gateway API)
+        const parsePrice = (price: string | undefined | null): number | null => {
+          if (!price) return null;
+          const parsed = parseFloat(price);
+          return Number.isNaN(parsed) ? null : parsed;
+        };
+
+        return {
+          id: m.id,
+          name: m.name,
+          provider: m.id.split("/")[0],
+          description: m.description ?? null,
+          modelType: m.modelType ?? "language",
+          contextWindow: null, // Gateway API doesn't provide contextWindow in the response
+          pricingInput: parsePrice(pricing?.input),
+          pricingOutput: parsePrice(pricing?.output),
+          pricingImageGen: parsePrice(pricing?.imageGen),
+          pricingWebSearch: parsePrice(pricing?.webSearch),
+          isEnabled: true,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
+      });
 
     console.log(`Upserting ${languageModels.length} language models...`);
     await upsertModels(languageModels);
@@ -76,7 +110,7 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error("Failed to sync models:", error);
     return new ChatSDKError(
-      "internal_server_error:api",
+      "bad_request:api",
       `Failed to sync models from gateway: ${error instanceof Error ? error.message : "Unknown error"}`
     ).toResponse();
   }

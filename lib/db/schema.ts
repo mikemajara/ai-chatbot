@@ -180,6 +180,8 @@ export const model = pgTable("Model", {
   contextWindow: integer("contextWindow"),
   pricingInput: real("pricingInput"), // Cost per 1M input tokens
   pricingOutput: real("pricingOutput"), // Cost per 1M output tokens
+  pricingImageGen: real("pricingImageGen"), // Cost per image generation (nullable = not supported)
+  pricingWebSearch: real("pricingWebSearch"), // Cost per web search (nullable = not supported)
   isEnabled: boolean("isEnabled").notNull().default(true), // Allow hiding models
   createdAt: timestamp("createdAt").notNull().defaultNow(),
   updatedAt: timestamp("updatedAt").notNull().defaultNow(),

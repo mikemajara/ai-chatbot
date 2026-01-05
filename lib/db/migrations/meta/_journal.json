@@ -64,6 +64,13 @@
       "when": 1767627804303,
       "tag": "0008_unusual_thena",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1767629751506,
+      "tag": "0009_slimy_grey_gargoyle",
+      "breakpoints": true
     }
   ]
 }

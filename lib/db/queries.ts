@@ -639,6 +639,8 @@ export async function upsertModels(models: Model[]) {
           contextWindow: m.contextWindow,
           pricingInput: m.pricingInput,
           pricingOutput: m.pricingOutput,
+          pricingImageGen: m.pricingImageGen,
+          pricingWebSearch: m.pricingWebSearch,
           isEnabled: m.isEnabled,
           createdAt: m.createdAt ?? now,
           updatedAt: now,
@@ -654,6 +656,8 @@ export async function upsertModels(models: Model[]) {
           contextWindow: sql`excluded."contextWindow"`,
           pricingInput: sql`excluded."pricingInput"`,
           pricingOutput: sql`excluded."pricingOutput"`,
+          pricingImageGen: sql`excluded."pricingImageGen"`,
+          pricingWebSearch: sql`excluded."pricingWebSearch"`,
           updatedAt: now,
           // createdAt and isEnabled are not updated on conflict
         },
