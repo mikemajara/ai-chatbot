@@ -466,6 +466,19 @@ function PureModelSelectorCompact({
 }) {
   const [open, setOpen] = useState(false);
 
+  // Global keyboard shortcut: CMD + SHIFT + 7 to open model selector
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.shiftKey && event.key === "7") {
+        event.preventDefault();
+        setOpen(true);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
   const { data: models, isLoading } = useSWR<ChatModel[]>(
     "/api/models",
     fetcher,
@@ -555,8 +568,8 @@ function PureModelSelectorCompact({
                         {model.pricingInput !== null &&
                           model.pricingOutput !== null && (
                             <span className="text-xs text-muted-foreground">
-                              ${model.pricingInput.toFixed(2)}/$1M in • $
-                              {model.pricingOutput.toFixed(2)}/$1M out
+                              ${(model.pricingInput * 1_000_000).toFixed(2)}/$1M in • $
+                              {(model.pricingOutput * 1_000_000).toFixed(2)}/$1M out
                             </span>
                           )}
                       </div>
