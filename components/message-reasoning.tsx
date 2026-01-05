@@ -5,7 +5,7 @@ import {
   Reasoning,
   ReasoningContent,
   ReasoningTrigger,
-} from "./elements/reasoning";
+} from "@/components/ai-elements/reasoning";
 
 type MessageReasoningProps = {
   isLoading: boolean;

@@ -1,29 +1,43 @@
 "use client";
 import type { UseChatHelpers } from "@ai-sdk/react";
 import type { ToolUIPart } from "ai";
-import equal from "fast-deep-equal";
-import { memo, useState } from "react";
+import { useState, useEffect, memo } from "react";
 import type { Vote } from "@/lib/db/schema";
 import type { ChatMessage } from "@/lib/types";
 import { cn, sanitizeText } from "@/lib/utils";
 import { useDataStream } from "./data-stream-provider";
 import { DocumentToolResult } from "./document";
 import { DocumentPreview } from "./document-preview";
-import { MessageContent } from "./elements/message";
-import { Response } from "./elements/response";
-import {
-  Tool,
-  ToolContent,
-  ToolHeader,
-  ToolInput,
-  ToolOutput,
-} from "./elements/tool";
-import { SparklesIcon } from "./icons";
 import { MessageActions } from "./message-actions";
 import { MessageEditor } from "./message-editor";
-import { MessageReasoning } from "./message-reasoning";
 import { PreviewAttachment } from "./preview-attachment";
 import { Weather } from "./weather";
+import {
+  Message,
+  MessageContent,
+  MessageResponse,
+  MessageAttachment,
+  MessageAttachments,
+} from "@/components/ai-elements/message";
+import {
+  Reasoning,
+  ReasoningTrigger,
+  ReasoningContent,
+} from "@/components/ai-elements/reasoning";
+import {
+  ChainOfThought,
+  ChainOfThoughtHeader,
+  ChainOfThoughtContent,
+  ChainOfThoughtStep,
+} from "@/components/ai-elements/chain-of-thought";
+import {
+  Tool,
+  ToolHeader,
+  ToolContent,
+  ToolInput,
+  ToolOutput,
+} from "@/components/ai-elements/tool";
+import { SparklesIcon } from "./icons";
 
 const PurePreviewMessage = ({
   addToolApprovalResponse,
@@ -54,6 +68,22 @@ const PurePreviewMessage = ({
 
   useDataStream();
 
+  const reasoningPart = message.parts.find(
+    (part) => part.type === "reasoning" && "text" in part && part.text?.trim()
+  ) as { type: "reasoning"; text: string } | undefined;
+  const hasReasoning = Boolean(reasoningPart && "text" in reasoningPart && reasoningPart.text?.trim());
+  
+  // Check if reasoning content is structured (suitable for chain-of-thought)
+  const hasStructuredReasoning = Boolean(
+    reasoningPart &&
+    "text" in reasoningPart &&
+    typeof reasoningPart.text === "string" &&
+    (reasoningPart.text.includes("Step") ||
+      reasoningPart.text.includes("step") ||
+      reasoningPart.text.match(/^\d+\./m) ||
+      reasoningPart.text.split("\n").filter((line) => line.trim().match(/^\d+\./)).length > 1)
+  );
+
   return (
     <div
       className="group/message fade-in w-full animate-in duration-200"
@@ -72,11 +102,8 @@ const PurePreviewMessage = ({
           </div>
         )}
 
-        <div
-          className={cn("flex flex-col", {
-            "gap-2 md:gap-4": message.parts?.some(
-              (p) => p.type === "text" && p.text?.trim()
-            ),
+        <Message
+          className={cn({
             "w-full":
               (message.role === "assistant" &&
                 (message.parts?.some(
@@ -87,23 +114,66 @@ const PurePreviewMessage = ({
             "max-w-[calc(100%-2.5rem)] sm:max-w-[min(fit-content,80%)]":
               message.role === "user" && mode !== "edit",
           })}
+          from={message.role}
         >
           {attachmentsFromMessage.length > 0 && (
-            <div
-              className="flex flex-row justify-end gap-2"
-              data-testid={"message-attachments"}
-            >
+            <MessageAttachments>
               {attachmentsFromMessage.map((attachment) => (
-                <PreviewAttachment
-                  attachment={{
-                    name: attachment.filename ?? "file",
-                    contentType: attachment.mediaType,
+                <MessageAttachment
+                  data={{
+                    type: "file",
+                    filename: attachment.filename ?? "file",
+                    mediaType: attachment.mediaType,
                     url: attachment.url,
                   }}
                   key={attachment.url}
                 />
               ))}
-            </div>
+            </MessageAttachments>
+          )}
+
+          {hasReasoning && reasoningPart && "text" in reasoningPart && (
+            hasStructuredReasoning ? (
+              <ChainOfThought defaultOpen={false}>
+                <ChainOfThoughtHeader>Chain of Thought</ChainOfThoughtHeader>
+                <ChainOfThoughtContent>
+                  {(() => {
+                    const text = reasoningPart.text;
+                    const steps = text.split(/\n(?=\d+\.|Step\s+\d+)/i).filter(Boolean);
+                    return steps.map((step, stepIdx) => {
+                      const stepMatch = step.match(/^(\d+\.|Step\s+\d+[:.]?)\s*(.+)/i);
+                      const label = stepMatch
+                        ? stepMatch[2].split("\n")[0].trim()
+                        : step.split("\n")[0].trim();
+                      const description = step.split("\n").slice(1).join("\n").trim();
+                      return (
+                        <ChainOfThoughtStep
+                          key={stepIdx}
+                          label={label || `Step ${stepIdx + 1}`}
+                          description={description || undefined}
+                          status={
+                            isLoading && stepIdx === steps.length - 1
+                              ? "active"
+                              : "complete"
+                          }
+                        >
+                          {description && (
+                            <MessageResponse className="text-xs">
+                              {description}
+                            </MessageResponse>
+                          )}
+                        </ChainOfThoughtStep>
+                      );
+                    });
+                  })()}
+                </ChainOfThoughtContent>
+              </ChainOfThought>
+            ) : (
+              <Reasoning isStreaming={isLoading} defaultOpen={true}>
+                <ReasoningTrigger />
+                <ReasoningContent>{reasoningPart.text}</ReasoningContent>
+              </Reasoning>
+            )
           )}
 
           {message.parts?.map((part, index) => {
@@ -111,37 +181,26 @@ const PurePreviewMessage = ({
             const key = `message-${message.id}-part-${index}`;
             const partType = type as string;
 
-            if (type === "reasoning" && part.text?.trim().length > 0) {
-              return (
-                <MessageReasoning
-                  isLoading={isLoading}
-                  key={key}
-                  reasoning={part.text}
-                />
-              );
-            }
-
             if (type === "text") {
               if (mode === "view") {
                 return (
-                  <div key={key}>
-                    <MessageContent
-                      className={cn({
-                        "wrap-break-word w-fit rounded-2xl px-3 py-2 text-right text-white":
-                          message.role === "user",
-                        "bg-transparent px-0 py-0 text-left":
-                          message.role === "assistant",
-                      })}
-                      data-testid="message-content"
-                      style={
-                        message.role === "user"
-                          ? { backgroundColor: "#006cff" }
-                          : undefined
-                      }
-                    >
-                      <Response>{sanitizeText(part.text)}</Response>
-                    </MessageContent>
-                  </div>
+                  <MessageContent
+                    key={key}
+                    className={cn({
+                      "wrap-break-word w-fit rounded-2xl px-3 py-2 text-right text-white":
+                        message.role === "user",
+                      "bg-transparent px-0 py-0 text-left":
+                        message.role === "assistant",
+                    })}
+                    data-testid="message-content"
+                    style={
+                      message.role === "user"
+                        ? { backgroundColor: "#006cff" }
+                        : undefined
+                    }
+                  >
+                    <MessageResponse>{sanitizeText(part.text)}</MessageResponse>
+                  </MessageContent>
                 );
               }
 
@@ -428,27 +487,13 @@ const PurePreviewMessage = ({
               vote={vote}
             />
           )}
-        </div>
+        </Message>
       </div>
     </div>
   );
 };
 
-export const PreviewMessage = memo(
-  PurePreviewMessage,
-  (prevProps, nextProps) => {
-    if (
-      prevProps.isLoading === nextProps.isLoading &&
-      prevProps.message.id === nextProps.message.id &&
-      prevProps.requiresScrollPadding === nextProps.requiresScrollPadding &&
-      equal(prevProps.message.parts, nextProps.message.parts) &&
-      equal(prevProps.vote, nextProps.vote)
-    ) {
-      return true;
-    }
-    return false;
-  }
-);
+export const PreviewMessage = memo(PurePreviewMessage);
 
 export const ThinkingMessage = () => {
   return (

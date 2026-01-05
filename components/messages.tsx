@@ -45,6 +45,7 @@ function PureMessages({
 
   useDataStream();
 
+
   return (
     <div className="relative flex-1">
       <div

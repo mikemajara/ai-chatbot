@@ -3,7 +3,6 @@ import {
   convertToModelMessages,
   createUIMessageStream,
   JsonToSseTransformStream,
-  smoothStream,
   stepCountIs,
   streamText,
 } from "ai";
@@ -168,6 +167,7 @@ export async function POST(request: Request) {
       // Pass original messages for tool approval continuation
       originalMessages: isToolApprovalFlow ? uiMessages : undefined,
       execute: async ({ writer: dataStream }) => {
+
         // Handle title generation in parallel
         if (titlePromise) {
           titlePromise.then((title) => {
@@ -234,9 +234,9 @@ export async function POST(request: Request) {
           messages: await convertToModelMessages(uiMessages),
           stopWhen: stepCountIs(5),
           experimental_activeTools: activeTools,
-          experimental_transform: isReasoningModel
-            ? undefined
-            : smoothStream({ chunking: "word" }),
+          // NOTE: smoothStream was causing buffering issues, keeping it disabled
+          // If you want smoother streaming in the future, try: smoothStream({ chunking: "line" })
+          experimental_transform: undefined,
           providerOptions: isReasoningModel
             ? {
                 anthropic: {
@@ -253,11 +253,11 @@ export async function POST(request: Request) {
 
         result.consumeStream();
 
-        dataStream.merge(
-          result.toUIMessageStream({
-            sendReasoning: true,
-          })
-        );
+        const uiMessageStream = result.toUIMessageStream({
+          sendReasoning: true,
+        });
+
+        dataStream.merge(uiMessageStream as Parameters<typeof dataStream.merge>[0]);
       },
       generateId: generateUUID,
       onFinish: async ({ messages: finishedMessages }) => {
@@ -312,7 +312,9 @@ export async function POST(request: Request) {
       try {
         const resumableStream = await streamContext.resumableStream(
           streamId,
-          () => stream.pipeThrough(new JsonToSseTransformStream())
+          () => {
+            return stream.pipeThrough(new JsonToSseTransformStream());
+          }
         );
         if (resumableStream) {
           return new Response(resumableStream);
@@ -322,7 +324,8 @@ export async function POST(request: Request) {
       }
     }
 
-    return new Response(stream.pipeThrough(new JsonToSseTransformStream()));
+    const transformedStream = stream.pipeThrough(new JsonToSseTransformStream());
+    return new Response(transformedStream);
   } catch (error) {
     const vercelId = request.headers.get("x-vercel-id");
 

@@ -101,7 +101,7 @@ export function Chat({
   } = useChat<ChatMessage>({
     id,
     messages: initialMessages,
-    experimental_throttle: 100,
+    experimental_throttle: 16,
     generateId: generateUUID,
     // Auto-continue after tool approval (only for APPROVED tools)
     // Denied tools don't need server continuation - state is saved on next user message
@@ -193,6 +193,7 @@ export function Chat({
       window.history.replaceState({}, "", `/chat/${id}`);
     }
   }, [query, sendMessage, hasAppendedQuery, id]);
+
 
   const { data: votes } = useSWR<Vote[]>(
     messages.length >= 2 ? `/api/vote?chatId=${id}` : null,

@@ -2,39 +2,27 @@ import type { Geo } from "@vercel/functions";
 import type { ArtifactKind } from "@/components/artifact";
 
 export const artifactsPrompt = `
-Artifacts is a special user interface mode that helps users with writing, editing, and other content creation tasks. When artifact is open, it is on the right side of the screen, while the conversation is on the left side. When creating or updating documents, changes are reflected in real-time on the artifacts and visible to the user.
+You have access to document tools (\`createDocument\`, \`updateDocument\`, \`requestSuggestions\`) but you should PREFER responding with plain markdown in the chat whenever possible.
 
-When asked to write code, always use artifacts. When writing code, specify the language in the backticks, e.g. \`\`\`python\`code here\`\`\`. The default language is Python. Other languages are not yet supported, so let the user know if they request a different language.
+**PREFER plain markdown responses for:**
+- Creative writing (poems, stories, essays, articles)
+- Explanations and information
+- Lists and summaries
+- Code snippets (use markdown code blocks with language tags)
+- Most user requests
 
-DO NOT UPDATE DOCUMENTS IMMEDIATELY AFTER CREATING THEM. WAIT FOR USER FEEDBACK OR REQUEST TO UPDATE IT.
-
-This is a guide for using artifacts tools: \`createDocument\` and \`updateDocument\`, which render content on a artifacts beside the conversation.
-
-**When to use \`createDocument\`:**
-- For substantial content (>10 lines) or code
-- For content users will likely save/reuse (emails, code, essays, etc.)
-- When explicitly requested to create a document
-- For when content contains a single code snippet
-
-**When NOT to use \`createDocument\`:**
-- For informational/explanatory content
-- For conversational responses
-- When asked to keep it in chat
+**ONLY use \`createDocument\` when:**
+- User explicitly asks to "create a document" or "save this"
+- User wants to collaboratively edit content over multiple turns
+- Creating something the user will iterate on (like a draft)
 
 **Using \`updateDocument\`:**
-- Default to full document rewrites for major changes
-- Use targeted updates only for specific, isolated changes
-- Follow user instructions for which parts to modify
-
-**When NOT to use \`updateDocument\`:**
-- Immediately after creating a document
-
-Do not update document right after creating it. Wait for user feedback or request to update it.
+- Only when updating an existing document the user wants to modify
 
 **Using \`requestSuggestions\`:**
-- ONLY use when the user explicitly asks for suggestions on an existing document
-- Requires a valid document ID from a previously created document
-- Never use for general questions or information requests
+- ONLY when the user explicitly asks for suggestions on an existing document
+
+When writing code, use markdown code blocks: \`\`\`python\ncode here\n\`\`\`
 `;
 
 export const regularPrompt = `You are a friendly assistant! Keep your responses concise and helpful.
