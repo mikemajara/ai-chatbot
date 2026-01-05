@@ -97,8 +97,8 @@ const PurePreviewMessage = ({
         })}
       >
         {message.role === "assistant" && (
-          <div className="-mt-1 flex size-8 shrink-0 items-center justify-center rounded-full bg-background ring-1 ring-border">
-            <SparklesIcon size={14} />
+          <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-background ring-1 ring-border">
+            <SparklesIcon size={14}/>
           </div>
         )}
 
@@ -187,17 +187,12 @@ const PurePreviewMessage = ({
                   <MessageContent
                     key={key}
                     className={cn({
-                      "wrap-break-word w-fit rounded-2xl px-3 py-2 text-right text-white":
+                      "wrap-break-word w-fit rounded-2xl px-3 py-2 text-right text-white bg-primary":
                         message.role === "user",
                       "bg-transparent px-0 py-0 text-left":
                         message.role === "assistant",
                     })}
                     data-testid="message-content"
-                    style={
-                      message.role === "user"
-                        ? { backgroundColor: "#006cff" }
-                        : undefined
-                    }
                   >
                     <MessageResponse>{sanitizeText(part.text)}</MessageResponse>
                   </MessageContent>
