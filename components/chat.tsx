@@ -72,10 +72,22 @@ export function Chat({
   const [showCreditCardAlert, setShowCreditCardAlert] = useState(false);
   const [currentModelId, setCurrentModelId] = useState(initialChatModel);
   const currentModelIdRef = useRef(currentModelId);
+  const [webSearchEnabled, setWebSearchEnabled] = useState(false);
+  const [imageGenEnabled, setImageGenEnabled] = useState(false);
+  const webSearchEnabledRef = useRef(webSearchEnabled);
+  const imageGenEnabledRef = useRef(imageGenEnabled);
 
   useEffect(() => {
     currentModelIdRef.current = currentModelId;
   }, [currentModelId]);
+
+  useEffect(() => {
+    webSearchEnabledRef.current = webSearchEnabled;
+  }, [webSearchEnabled]);
+
+  useEffect(() => {
+    imageGenEnabledRef.current = imageGenEnabled;
+  }, [imageGenEnabled]);
 
   const {
     messages,
@@ -135,6 +147,8 @@ export function Chat({
               : { message: lastMessage }),
             selectedChatModel: currentModelIdRef.current,
             selectedVisibilityType: visibilityType,
+            webSearchEnabled: webSearchEnabledRef.current,
+            imageGenEnabled: imageGenEnabledRef.current,
             ...request.body,
           },
         };
@@ -222,6 +236,7 @@ export function Chat({
             <MultimodalInput
               attachments={attachments}
               chatId={id}
+              imageGenEnabled={imageGenEnabled}
               input={input}
               messages={messages}
               onModelChange={setCurrentModelId}
@@ -229,10 +244,13 @@ export function Chat({
               selectedVisibilityType={visibilityType}
               sendMessage={sendMessage}
               setAttachments={setAttachments}
+              setImageGenEnabled={setImageGenEnabled}
               setInput={setInput}
               setMessages={setMessages}
+              setWebSearchEnabled={setWebSearchEnabled}
               status={status}
               stop={stop}
+              webSearchEnabled={webSearchEnabled}
             />
           )}
         </div>

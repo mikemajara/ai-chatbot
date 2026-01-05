@@ -79,6 +79,10 @@ function PureMultimodalInput({
   selectedVisibilityType,
   selectedModelId,
   onModelChange,
+  webSearchEnabled,
+  setWebSearchEnabled,
+  imageGenEnabled,
+  setImageGenEnabled,
 }: {
   chatId: string;
   input: string;
@@ -94,6 +98,10 @@ function PureMultimodalInput({
   selectedVisibilityType: VisibilityType;
   selectedModelId: string;
   onModelChange?: (modelId: string) => void;
+  webSearchEnabled: boolean;
+  setWebSearchEnabled: Dispatch<SetStateAction<boolean>>;
+  imageGenEnabled: boolean;
+  setImageGenEnabled: Dispatch<SetStateAction<boolean>>;
 }) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { width } = useWindowSize();
@@ -392,6 +400,18 @@ function PureMultimodalInput({
               selectedModelId={selectedModelId}
               status={status}
             />
+            <WebSearchButton
+              enabled={webSearchEnabled}
+              onToggle={setWebSearchEnabled}
+              selectedModelId={selectedModelId}
+              status={status}
+            />
+            <ImageGenButton
+              enabled={imageGenEnabled}
+              onToggle={setImageGenEnabled}
+              selectedModelId={selectedModelId}
+              status={status}
+            />
             <ModelSelectorCompact
               onModelChange={onModelChange}
               selectedModelId={selectedModelId}
@@ -434,6 +454,12 @@ export const MultimodalInput = memo(
     if (prevProps.selectedModelId !== nextProps.selectedModelId) {
       return false;
     }
+    if (prevProps.webSearchEnabled !== nextProps.webSearchEnabled) {
+      return false;
+    }
+    if (prevProps.imageGenEnabled !== nextProps.imageGenEnabled) {
+      return false;
+    }
 
     return true;
   }
@@ -468,6 +494,110 @@ function PureAttachmentsButton({
 }
 
 const AttachmentsButton = memo(PureAttachmentsButton);
+
+function PureWebSearchButton({
+  enabled,
+  onToggle,
+  selectedModelId,
+  status,
+}: {
+  enabled: boolean;
+  onToggle: Dispatch<SetStateAction<boolean>>;
+  selectedModelId: string;
+  status: UseChatHelpers<ChatMessage>["status"];
+}) {
+  const { data: models } = useSWR<ChatModel[]>("/api/models", fetcher, {
+    revalidateOnFocus: false,
+    revalidateOnReconnect: false,
+  });
+
+  const selectedModel = models?.find((m) => m.id === selectedModelId);
+  const supportsWebSearch = selectedModel?.pricingWebSearch !== null;
+  const isReasoningModel =
+    selectedModelId.includes("reasoning") || selectedModelId.includes("think");
+
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            className={cn(
+              "aspect-square h-8 rounded-lg p-1 transition-colors hover:bg-accent",
+              enabled && "bg-accent"
+            )}
+            data-testid="web-search-button"
+            disabled={status !== "ready" || !supportsWebSearch || isReasoningModel}
+            onClick={(event) => {
+              event.preventDefault();
+              onToggle((prev) => !prev);
+            }}
+            variant="ghost"
+          >
+            <GlobeIcon size={14} />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>{supportsWebSearch ? "Web Search" : "Web Search not supported"}</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
+
+const WebSearchButton = memo(PureWebSearchButton);
+
+function PureImageGenButton({
+  enabled,
+  onToggle,
+  selectedModelId,
+  status,
+}: {
+  enabled: boolean;
+  onToggle: Dispatch<SetStateAction<boolean>>;
+  selectedModelId: string;
+  status: UseChatHelpers<ChatMessage>["status"];
+}) {
+  const { data: models } = useSWR<ChatModel[]>("/api/models", fetcher, {
+    revalidateOnFocus: false,
+    revalidateOnReconnect: false,
+  });
+
+  const selectedModel = models?.find((m) => m.id === selectedModelId);
+  const supportsImageGen = selectedModel?.pricingImageGen !== null;
+  const isReasoningModel =
+    selectedModelId.includes("reasoning") || selectedModelId.includes("think");
+
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            className={cn(
+              "aspect-square h-8 rounded-lg p-1 transition-colors hover:bg-accent",
+              enabled && "bg-accent"
+            )}
+            data-testid="image-gen-button"
+            disabled={status !== "ready" || !supportsImageGen || isReasoningModel}
+            onClick={(event) => {
+              event.preventDefault();
+              onToggle((prev) => !prev);
+            }}
+            variant="ghost"
+          >
+            <ImageIcon size={14} />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>
+            {supportsImageGen ? "Image Generation" : "Image Generation not supported"}
+          </p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
+
+const ImageGenButton = memo(PureImageGenButton);
 
 function PureModelSelectorCompact({
   selectedModelId,

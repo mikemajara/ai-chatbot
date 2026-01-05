@@ -20,6 +20,8 @@
   },
   "dependencies": {
     "@ai-sdk/gateway": "3.0.6",
+    "@ai-sdk/google": "^3.0.2",
+    "@ai-sdk/openai": "^3.0.2",
     "@ai-sdk/provider": "3.0.1",
     "@ai-sdk/react": "3.0.7",
     "@codemirror/lang-javascript": "^6.2.2",

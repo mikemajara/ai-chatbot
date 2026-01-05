@@ -21,6 +21,8 @@ import { getWeather } from "@/lib/ai/tools/get-weather";
 import { requestSuggestions } from "@/lib/ai/tools/request-suggestions";
 import { updateDocument } from "@/lib/ai/tools/update-document";
 import { isProductionEnvironment } from "@/lib/constants";
+import { openai } from "@ai-sdk/openai";
+import { google } from "@ai-sdk/google";
 import {
   createStreamId,
   deleteChatById,
@@ -74,8 +76,15 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { id, message, messages, selectedChatModel, selectedVisibilityType } =
-      requestBody;
+    const {
+      id,
+      message,
+      messages,
+      selectedChatModel,
+      selectedVisibilityType,
+      webSearchEnabled = false,
+      imageGenEnabled = false,
+    } = requestBody;
 
     const session = await auth();
 
@@ -171,19 +180,60 @@ export async function POST(request: Request) {
           selectedChatModel.includes("reasoning") ||
           selectedChatModel.includes("thinking");
 
+        // Extract provider from model ID (e.g., "openai/gpt-5" -> "openai")
+        const [provider] = selectedChatModel.split("/");
+
+        // Build base tools
+        const baseTools = {
+          getWeather,
+          createDocument: createDocument({ session, dataStream }),
+          updateDocument: updateDocument({ session, dataStream }),
+          requestSuggestions: requestSuggestions({
+            session,
+            dataStream,
+          }),
+        };
+
+        // Conditionally add provider-specific tools
+        const tools: typeof baseTools & Record<string, unknown> = {
+          ...baseTools,
+        };
+
+        // Add web search tools based on provider
+        if (webSearchEnabled && !isReasoningModel) {
+          if (provider === "openai") {
+            tools.web_search = openai.tools.webSearch({});
+          } else if (provider === "google") {
+            tools.google_search = google.tools.googleSearch({});
+          }
+        }
+
+        // Add image generation tools based on provider
+        if (imageGenEnabled && !isReasoningModel) {
+          if (provider === "openai") {
+            tools.image_generation = openai.tools.imageGeneration({});
+          }
+        }
+
+        // Build active tools list
+        const activeTools = isReasoningModel
+          ? []
+          : [
+              "getWeather",
+              "createDocument",
+              "updateDocument",
+              "requestSuggestions",
+              ...(webSearchEnabled && provider === "openai" ? ["web_search"] : []),
+              ...(webSearchEnabled && provider === "google" ? ["google_search"] : []),
+              ...(imageGenEnabled && provider === "openai" ? ["image_generation"] : []),
+            ];
+
         const result = streamText({
           model: getLanguageModel(selectedChatModel),
           system: systemPrompt({ selectedChatModel, requestHints }),
           messages: await convertToModelMessages(uiMessages),
           stopWhen: stepCountIs(5),
-          experimental_activeTools: isReasoningModel
-            ? []
-            : [
-                "getWeather",
-                "createDocument",
-                "updateDocument",
-                "requestSuggestions",
-              ],
+          experimental_activeTools: activeTools,
           experimental_transform: isReasoningModel
             ? undefined
             : smoothStream({ chunking: "word" }),
@@ -194,15 +244,7 @@ export async function POST(request: Request) {
                 },
               }
             : undefined,
-          tools: {
-            getWeather,
-            createDocument: createDocument({ session, dataStream }),
-            updateDocument: updateDocument({ session, dataStream }),
-            requestSuggestions: requestSuggestions({
-              session,
-              dataStream,
-            }),
-          },
+          tools,
           experimental_telemetry: {
             isEnabled: isProductionEnvironment,
             functionId: "stream-text",
