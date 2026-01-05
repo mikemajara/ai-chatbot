@@ -689,3 +689,72 @@ export async function toggleModelEnabled({
     );
   }
 }
+
+export async function updateModelCapabilities({
+  id,
+  pricingImageGen,
+  pricingWebSearch,
+}: {
+  id: string;
+  pricingImageGen: number | null;
+  pricingWebSearch: number | null;
+}) {
+  try {
+    return await db
+      .update(model)
+      .set({
+        pricingImageGen,
+        pricingWebSearch,
+        updatedAt: new Date(),
+      })
+      .where(eq(model.id, id));
+  } catch (_error) {
+    throw new ChatSDKError(
+      "bad_request:database",
+      `Failed to update capabilities for model ${id}`
+    );
+  }
+}
+
+export async function bulkUpdateModelCapabilities(
+  updates: Array<{
+    id: string;
+    pricingImageGen: number | null;
+    pricingWebSearch: number | null;
+  }>
+) {
+  try {
+    const now = new Date();
+    const results = await Promise.allSettled(
+      updates.map((update) =>
+        db
+          .update(model)
+          .set({
+            pricingImageGen: update.pricingImageGen,
+            pricingWebSearch: update.pricingWebSearch,
+            updatedAt: now,
+          })
+          .where(eq(model.id, update.id))
+      )
+    );
+
+    const successful = results.filter(
+      (r) => r.status === "fulfilled"
+    ).length;
+    const failed = results.filter((r) => r.status === "rejected");
+
+    return {
+      total: updates.length,
+      successful,
+      failed: failed.length,
+      errors: failed.map((f) =>
+        f.status === "rejected" ? f.reason : null
+      ),
+    };
+  } catch (_error) {
+    throw new ChatSDKError(
+      "bad_request:database",
+      "Failed to bulk update model capabilities"
+    );
+  }
+}

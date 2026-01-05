@@ -587,7 +587,7 @@ function PureModelSelectorCompact({
                           )}
                       </div>
                       <div className="flex items-center gap-1 ml-auto">
-                        {model.pricingImageGen !== null && (
+                        {model.pricingImageGen !== null ? (
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <div className="flex items-center text-muted-foreground">
@@ -598,8 +598,10 @@ function PureModelSelectorCompact({
                               <p>Image Generation</p>
                             </TooltipContent>
                           </Tooltip>
+                        ) : (
+                          <div className="size-3" />
                         )}
-                        {model.pricingWebSearch !== null && (
+                        {model.pricingWebSearch !== null ? (
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <div className="flex items-center text-muted-foreground">
@@ -610,9 +612,13 @@ function PureModelSelectorCompact({
                               <p>Web Search</p>
                             </TooltipContent>
                           </Tooltip>
+                        ) : (
+                          <div className="size-3" />
                         )}
-                        {model.id === selectedModel?.id && (
+                        {model.id === selectedModel?.id ? (
                           <CheckIcon className="ml-1 size-4" />
+                        ) : (
+                          <div className="ml-1 size-4" />
                         )}
                       </div>
                     </ModelSelectorItem>

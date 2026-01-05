@@ -17,8 +17,13 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Allow /api/models POST to use API key auth instead of session
+  // Allow /api/models endpoints to use API key auth instead of session
   if (pathname === "/api/models" && request.method === "POST") {
+    return NextResponse.next();
+  }
+
+  // Allow /api/models/sync-capabilities to use API key auth
+  if (pathname === "/api/models/sync-capabilities") {
     return NextResponse.next();
   }
 
