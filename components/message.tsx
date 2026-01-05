@@ -1,5 +1,6 @@
 "use client";
 import type { UseChatHelpers } from "@ai-sdk/react";
+import type { ToolUIPart } from "ai";
 import equal from "fast-deep-equal";
 import { memo, useState } from "react";
 import type { Vote } from "@/lib/db/schema";
@@ -108,6 +109,7 @@ const PurePreviewMessage = ({
           {message.parts?.map((part, index) => {
             const { type } = part;
             const key = `message-${message.id}-part-${index}`;
+            const partType = type as string;
 
             if (type === "reasoning" && part.text?.trim().length > 0) {
               return (
@@ -333,6 +335,80 @@ const PurePreviewMessage = ({
                           )
                         }
                       />
+                    )}
+                  </ToolContent>
+                </Tool>
+              );
+            }
+
+            if (partType === "tool-image_generation") {
+              const { toolCallId, state, output } = part as {
+                toolCallId: string;
+                state: string;
+                output?: { result?: string };
+              };
+
+              if (state === "output-available" && output?.result) {
+                return (
+                  <div key={toolCallId} className="my-4">
+                    <picture>
+                      <img
+                        alt="Generated image"
+                        className="w-full max-w-2xl rounded-lg shadow-md"
+                        src={`data:image/png;base64,${output.result}`}
+                      />
+                    </picture>
+                  </div>
+                );
+              }
+
+              return (
+                <Tool key={toolCallId} defaultOpen={true}>
+                  <ToolHeader state={state as ToolUIPart["state"]} type="tool-image_generation" />
+                  <ToolContent>
+                    <div className="p-4 text-muted-foreground">
+                      Generating image...
+                    </div>
+                  </ToolContent>
+                </Tool>
+              );
+            }
+
+            if (partType === "tool-web_search" || partType === "tool-google_search") {
+              const { toolCallId, state, output } = part as {
+                toolCallId: string;
+                state: string;
+                output?: { sources?: Array<{ url: string }> };
+              };
+
+              return (
+                <Tool key={toolCallId} defaultOpen={true}>
+                  <ToolHeader state={state as ToolUIPart["state"]} type={partType as ToolUIPart["type"]} />
+                  <ToolContent>
+                    {state === "output-available" && output?.sources && (
+                      <div className="space-y-2 p-4">
+                        <h4 className="text-xs font-medium text-muted-foreground uppercase">
+                          Sources
+                        </h4>
+                        <div className="flex flex-wrap gap-2">
+                          {output.sources.map((source: { url: string }, i: number) => (
+                            <a
+                              key={i}
+                              href={source.url}
+                              rel="noopener noreferrer"
+                              target="_blank"
+                              className="text-xs text-blue-500 hover:underline"
+                            >
+                              {new URL(source.url).hostname}
+                            </a>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {state === "output-available" && !output?.sources && (
+                      <div className="p-4 text-muted-foreground text-sm">
+                        Search completed
+                      </div>
                     )}
                   </ToolContent>
                 </Tool>
